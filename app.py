@@ -1,10 +1,22 @@
-from dash import Dash, html, dcc, Output, Input, State, callback
+from dash import Dash, html, dcc, Output, Input, State , exceptions
 from datetime import datetime as dt
 import yfinance as yf
 import pandas as pd
+import numpy as np
 import plotly.graph_objs as go
 import plotly.express as px
 # import dash_bootstrap_components as dbc
+
+def get_stock_price_fig(df):
+    fig = px.line(df, x='Date', y=['Open', 'Close'], title='Closing and Opening Price')
+    return fig
+
+def get_ema(df):
+    df['EMA_20'] = df['Close'].ewm(span=20, adjust=False).mean()
+    fig = px.scatter(df,x= 'Date', y= 'EMA_20', title="Exponential Moving Average vs Date")
+    fig.update_traces(mode='lines+markers')
+    return fig
+    
 
 app = Dash(__name__, external_stylesheets=['assests/styles.css'])
 server = app.server
@@ -55,7 +67,7 @@ app.layout= html.Div([
         ], className="header", id="header"),
         html.Div([
             #description
-        ], className="description-ticker", id="description-ticker"),
+        ], className="description-ticker", id="description"),
         html.Div([
             #stock price plot
         ], id="graphs-content"),
@@ -72,12 +84,14 @@ app.layout= html.Div([
 
 @app.callback(
     Output('header', 'children'),
-    Output('description-ticker', 'children'),
+    Output('description', 'children'),
     Input('submit-button', 'n_clicks'),
     State('stock-name', 'value')
 )
-def update_header(n_clicks, stock_name):
-    if n_clicks > 0:
+def update_info(n_clicks, stock_name):
+    if n_clicks is None:
+        raise exceptions.PreventUpdate
+    elif n_clicks > 0:
         stock = yf.Ticker(stock_name)
         info = stock.info
         df = pd.DataFrame().from_dict(info, orient="index").T
@@ -85,9 +99,8 @@ def update_header(n_clicks, stock_name):
         logo_url = f"https://logo.clearbit.com/{domain}"
         return [
             html.Img(src=logo_url, className="logo"),
-            html.H3(info['shortName'])
-        ]
-
+            html.H3(df['shortName'].values[0])
+        ], html.P(df['longBusinessSummary'].values[0])
 
 @app.callback(
     Output('graphs-content', 'children'),
@@ -95,11 +108,36 @@ def update_header(n_clicks, stock_name):
     State('stock-name', 'value'),
     State('my-date-picker-range', 'start_date'),
     State('my-date-picker-range', 'end_date')
-
-
 )
-def func():
-    return
+def update_stock_graph(n_clicks, stock_name, start_date, end_date):
+    if n_clicks is None:
+        raise exceptions.PreventUpdate
+    elif n_clicks > 0:
+        df = yf.download(stock_name, start=start_date, end=end_date)
+        df.reset_index(inplace=True)
+        fig = get_stock_price_fig(df)
+        return dcc.Graph(figure=fig)
+    else:
+        return None
+    
+
+@app.callback(
+    Output('main-content', 'children'),
+    Input('indicators-button', 'n_clicks'),
+    State('stock-name', 'value'),
+    State('my-date-picker-range', 'start_date'),
+    State('my-date-picker-range', 'end_date')
+)
+def update_indicators_graph(n_clicks, stock_name, start_date, end_date):
+    if n_clicks is None:
+        raise exceptions.PreventUpdate
+    elif n_clicks > 0:
+        df = yf.download(stock_name, start=start_date, end=end_date)
+        df.reset_index(inplace=True)
+        fig = get_ema(df)
+        return dcc.Graph(figure=fig)
+    else:
+        return None
 
 if __name__ == "__main__":
     app.run(debug=True)
