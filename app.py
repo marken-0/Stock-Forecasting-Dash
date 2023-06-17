@@ -1,22 +1,24 @@
 from dash import Dash, html, dcc, Output, Input, State , exceptions
 from datetime import datetime as dt
+from model import build_model, plot_predictions
 import yfinance as yf
 import pandas as pd
 import numpy as np
 import plotly.graph_objs as go
 import plotly.express as px
+from sklearn.impute import SimpleImputer
 # import dash_bootstrap_components as dbc
 
 def get_stock_price_fig(df):
     fig = px.line(df, x='Date', y=['Open', 'Close'], title='Closing and Opening Price')
     return fig
 
-def get_ema(df):
+def get_ema_fig(df):
     df['EMA_20'] = df['Close'].ewm(span=20, adjust=False).mean()
     fig = px.scatter(df,x= 'Date', y= 'EMA_20', title="Exponential Moving Average vs Date")
     fig.update_traces(mode='lines+markers')
     return fig
-    
+
 
 app = Dash(__name__, external_stylesheets=['assests/styles.css'])
 server = app.server
@@ -134,10 +136,26 @@ def update_indicators_graph(n_clicks, stock_name, start_date, end_date):
     elif n_clicks > 0:
         df = yf.download(stock_name, start=start_date, end=end_date)
         df.reset_index(inplace=True)
-        fig = get_ema(df)
+        fig = get_ema_fig(df)
         return dcc.Graph(figure=fig)
     else:
         return None
+    
+@app.callback(
+    Output('forecast-content', 'children'),
+    Input('forecast-period-button', 'n_clicks'),
+    State('stock-name', 'value'),
+    State('forecast-period', 'value')
+)
+def update_forecast_graph(n_clicks, stock_name, forecast_period):
+    if n_clicks is None:
+        raise exceptions.PreventUpdate
+    elif n_clicks > 0:
+        fig = plot_predictions(build_model(stock_name), stock_name, forecast_period)
+        return dcc.Graph(figure=fig)
+    else:
+        return None
+
 
 if __name__ == "__main__":
     app.run(debug=True)
