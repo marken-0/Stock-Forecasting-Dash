@@ -3,11 +3,7 @@ from datetime import datetime as dt
 from model import build_model, plot_predictions
 import yfinance as yf
 import pandas as pd
-import numpy as np
-import plotly.graph_objs as go
 import plotly.express as px
-from sklearn.impute import SimpleImputer
-# import dash_bootstrap_components as dbc
 
 def get_stock_price_fig(df):
     fig = px.line(df, x='Date', y=['Open', 'Close'], title='Closing and Opening Price')
@@ -91,7 +87,7 @@ app.layout= html.Div([
     State('stock-name', 'value')
 )
 def update_info(n_clicks, stock_name):
-    if n_clicks is None:
+    if n_clicks is None or n_clicks == 0:
         raise exceptions.PreventUpdate
     elif n_clicks > 0:
         stock = yf.Ticker(stock_name)
@@ -159,7 +155,3 @@ def update_forecast_graph(n_clicks, stock_name, forecast_period):
 
 if __name__ == "__main__":
     app.run(debug=True)
-
-
-
-

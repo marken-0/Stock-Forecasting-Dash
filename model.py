@@ -27,7 +27,7 @@ def build_model(ticker):
         'gamma': [0.0001, 0.001, 0.005, 0.1, 1, 3, 5, 8, 40, 100, 1000]
     }
     svr = SVR(kernel='rbf')
-    grid_search = GridSearchCV(svr, parameters, cv=5, scoring='neg_mean_squared_error', verbose=0, n_jobs=-1)
+    grid_search = GridSearchCV(svr, parameters, cv=5, scoring='neg_mean_squared_error', verbose=1, n_jobs=-1)
     grid_search.fit(X_train, y_train)
     y_train = y_train.values.ravel()
 
@@ -63,7 +63,8 @@ def plot_predictions(model, ticker, n_days):
 
     # Create a new dataframe to hold the future predictions
     future_df = pd.DataFrame()
-    future_df['Day'] = range(len(data.Day), len(data.Day) + n_days)
+    start_date = pd.to_datetime(dt.datetime.today().date()) + dt.timedelta(days=1)
+    future_df['Day'] = pd.date_range(start_date, periods=n_days, freq='B')
     future_df['Predicted Close'] = future_predictions
 
     # Plot the predicted data
@@ -72,6 +73,3 @@ def plot_predictions(model, ticker, n_days):
     fig.update_layout(title=f'Predicted Close Price for {n_days} Days in the Future', xaxis_title='Day', yaxis_title='Closing Price')
 
     return fig
-
-
-# plot_predictions(build_model('AAPL'), 'AAPL', 10)
